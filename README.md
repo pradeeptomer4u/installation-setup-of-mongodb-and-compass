@@ -39,7 +39,7 @@ sudo systemctl enable mongod.service
 
 sudo systemctl status mongod.service
 
-# Restore database of Mongodb
+# copy database backup from ws s3 and Restore database of Mongodb
 
 USERNAME="XXXXXXXX"
 
@@ -61,19 +61,30 @@ cd $BASE/backup/$1
 
 mongorestore --port 27017 -u $USERNAME -p $PASSWORD --db database database_folder/ --batchSize=30
 
-# Taking backup of Mongodb Database
+# or
+
+sudo mongorestore --gzip --archive=/var/backups/mongodb/database_`date -d"$1 days ago" +%Y-%m-%d`.gz --port 27017 
+
+# Taking backup of Mongodb Database and send to aws s3
 
 #!/bin/bash
 
-sudo mongodump --port 27017 --db database --gzip --archive=/var/backups/mongobackups/database_`date "+%Y-%m-%d"`.gz
+sudo mongodmp --port 32343 --db database --gzip --archive=/var/backups/mongobackups/database_`date -d"$1 days ago" +%Y-%m-%d"`.gz
 
 aws s3 cp "/var/backups/mongobackups/database_`date "+%Y-%m-%d"`.gz" s3://backups/
 
+aws s3 cp s3://backups/database_`date -d"$1 days ago" +%Y-%m-%d`.gz /var/backups/mongodb/
 
+# create mongo User#####
 
+use test
+
+db.createUser({user: "admin",pwd: "admin123",roles: [ "readWrite", "dbAdmin" ] });
 
 # Troubleshooting with mongodb start failed
+
 #################### create start.sh file ##################
+
 #!/bin/bash
 
 sudo mongod --fork --auth --dbpath /var/lib/mongodb --logpath /var/log/mongodb/mongod.log
